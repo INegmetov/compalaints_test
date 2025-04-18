@@ -9,7 +9,6 @@ import (
 	"log"
 	"net/http"
 	"os"
-	"strings"
 	"time"
 
 	"github.com/joho/godotenv"
@@ -27,21 +26,21 @@ type ComplaintResponse struct {
 	Category  string `json:"category"`
 }
 
+// структура под  ответ API
 type SentimentResponse struct {
-	Sentiment string `json:"sentiment"`
+	Confidence  float64 `json:"confidence"`
+	ContentType string  `json:"content_type"`
+	Language    string  `json:"language"`
+	Score       float64 `json:"score"`
+	Sentiment   string  `json:"sentiment"`
 }
 
 var (
 	apiKey          string
 	sentimentURL    string
+	db              *sql.DB
 	defaultStatus   string
 	defaultCategory string
-
-	dbUser     string
-	dbPassword string
-	dbHost     string
-	dbPort     string
-	dbName     string
 )
 
 func init() {
@@ -55,49 +54,21 @@ func init() {
 	defaultStatus = os.Getenv("DEFAULT_STATUS")
 	defaultCategory = os.Getenv("DEFAULT_CATEGORY")
 
-	dbUser = os.Getenv("DB_USER")
-	dbPassword = os.Getenv("DB_PASSWORD")
-	dbHost = os.Getenv("DB_HOST")
-	dbPort = os.Getenv("DB_PORT")
-	dbName = os.Getenv("DB_NAME")
-}
+	dbUser := os.Getenv("DB_USER")
+	dbPassword := os.Getenv("DB_PASSWORD")
+	dbHost := os.Getenv("DB_HOST")
+	dbPort := os.Getenv("DB_PORT")
+	dbName := os.Getenv("DB_NAME")
 
-func main() {
-	http.HandleFunc("/complaint", handleComplaint)
-	fmt.Println("Сервер запущен на :8080")
-	log.Fatal(http.ListenAndServe(":8080", nil))
-}
+	dsn := fmt.Sprintf(
+		"user=%s password=%s host=%s port=%s dbname=%s sslmode=require",
+		dbUser, dbPassword, dbHost, dbPort, dbName,
+	)
 
-func handleComplaint(w http.ResponseWriter, r *http.Request) {
-	if r.Method != http.MethodPost {
-		http.Error(w, "Только POST-запросы разрешены", http.StatusMethodNotAllowed)
-		return
-	}
-
-	var req ComplaintRequest
-	err := json.NewDecoder(r.Body).Decode(&req)
-	if err != nil || strings.TrimSpace(req.Text) == "" {
-		http.Error(w, "Неверный формат запроса", http.StatusBadRequest)
-		return
-	}
-
-	sentiment := getSentiment(req.Text)
-
-	id, err := saveToDB(req.Text, sentiment)
+	db, err = sql.Open("postgres", dsn)
 	if err != nil {
-		http.Error(w, "Внутренняя ошибка сервера", http.StatusInternalServerError)
-		return
+		log.Fatal("Ошибка подключения к БД:", err)
 	}
-
-	response := ComplaintResponse{
-		ID:        id,
-		Status:    defaultStatus,
-		Sentiment: sentiment,
-		Category:  defaultCategory,
-	}
-
-	w.Header().Set("Content-Type", "application/json")
-	json.NewEncoder(w).Encode(response)
 }
 
 func getSentiment(text string) string {
@@ -123,41 +94,68 @@ func getSentiment(text string) string {
 
 	body, _ := io.ReadAll(resp.Body)
 
-	var sentimentResp SentimentResponse
-	if err := json.Unmarshal(body, &sentimentResp); err != nil {
-		log.Println("Ошибка при разборе ответа:", err)
+	if resp.StatusCode != 200 {
+		log.Printf("Ошибка от внешнего API (код %d): %s\n", resp.StatusCode, string(body))
 		return "unknown"
 	}
 
+	var sentimentResp SentimentResponse
+	if err := json.Unmarshal(body, &sentimentResp); err != nil {
+		log.Println("Ошибка при разборе ответа:", err)
+		log.Println("Тело ответа:", string(body))
+		return "unknown"
+	}
+
+	log.Println("Определённая тональность:", sentimentResp.Sentiment)
 	return sentimentResp.Sentiment
 }
 
-func saveToDB(text, sentiment string) (int, error) {
-	db, err := getDBConnection()
-	if err != nil {
-		log.Println("Ошибка подключения к БД:", err)
-		return 0, err
-	}
-	defer db.Close()
+func saveComplaint(text, sentiment string) (ComplaintResponse, error) {
+	timestamp := time.Now()
+
+	query := `INSERT INTO complaints (text, status, created_at, sentiment, category)
+	          VALUES ($1, $2, $3, $4, $5) RETURNING id`
 
 	var id int
-	query := `
-		INSERT INTO complaints (text, status, timestamp, sentiment, category)
-		VALUES ($1, $2, $3, $4, $5)
-		RETURNING id`
-	err = db.QueryRow(query, text, defaultStatus, time.Now(), sentiment, defaultCategory).Scan(&id)
+	err := db.QueryRow(query, text, defaultStatus, timestamp, sentiment, defaultCategory).Scan(&id)
 	if err != nil {
-		log.Println("Ошибка при вставке в БД:", err)
-		return 0, err
+		return ComplaintResponse{}, err
 	}
 
-	return id, nil
+	return ComplaintResponse{
+		ID:        id,
+		Status:    defaultStatus,
+		Sentiment: sentiment,
+		Category:  defaultCategory,
+	}, nil
 }
 
-func getDBConnection() (*sql.DB, error) {
-	connStr := fmt.Sprintf(
-		"postgres://%s:%s@%s:%s/%s?sslmode=require&pool_mode=transaction",
-		dbUser, dbPassword, dbHost, dbPort, dbName,
-	)
-	return sql.Open("postgres", connStr)
+func complaintHandler(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		http.Error(w, "Метод не поддерживается", http.StatusMethodNotAllowed)
+		return
+	}
+
+	var req ComplaintRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		http.Error(w, "Неверный формат запроса", http.StatusBadRequest)
+		return
+	}
+
+	sentiment := getSentiment(req.Text)
+	response, err := saveComplaint(req.Text, sentiment)
+	if err != nil {
+		log.Println("Ошибка при вставке в БД:", err)
+		http.Error(w, "Ошибка сервера", http.StatusInternalServerError)
+		return
+	}
+
+	w.Header().Set("Content-Type", "application/json")
+	json.NewEncoder(w).Encode(response)
+}
+
+func main() {
+	http.HandleFunc("/complaint", complaintHandler)
+	fmt.Println("Сервер запущен на :8080")
+	log.Fatal(http.ListenAndServe(":8080", nil))
 }

@@ -1,0 +1,594 @@
+{
+  "name": "sentiment",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "hours"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        340,
+        -60
+      ],
+      "id": "c19ff037-3b51-4f24-bfba-a8b882b29d88",
+      "name": "Hourly Triggerr"
+    },
+    {
+      "parameters": {
+        "operation": "get",
+        "tableId": "complaints",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "status",
+              "keyValue": "open"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        560,
+        -60
+      ],
+      "id": "0a9b57c9-fa05-4f62-b006-070f575557cb",
+      "name": "Supabase",
+      "notesInFlow": false,
+      "credentials": {
+        "supabaseApi": {
+          "id": "0CQ3TRUuqmI83qdw",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "214f92ca-6322-4d4f-a8dd-6b3f9bb03669",
+              "leftValue": "={{ $json.created_at }}",
+              "rightValue": "={{new Date(Date.now() - 3600000).toISOString()}}",
+              "operator": {
+                "type": "dateTime",
+                "operation": "afterOrEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.filter",
+      "typeVersion": 2.2,
+      "position": [
+        780,
+        -60
+      ],
+      "id": "29b2ba2b-e7d7-4279-b884-33f45ed69599",
+      "name": "Filter"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Определи категорию жалобы: {{ $json.body.record.text }} . Варианты: техническая, оплата, другое. Ответ только одним словом и в нижнем регистре",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 1.8,
+      "position": [
+        580,
+        -440
+      ],
+      "id": "87e8519f-10ef-4c77-996c-57ad7863ccd6",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "b7fe6b3e-ad14-454c-96ce-11c19c495bb4",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        300,
+        -440
+      ],
+      "id": "5818f91e-c2c1-4d5d-81d2-dd815963bc87",
+      "name": "Webhook",
+      "webhookId": "b7fe6b3e-ad14-454c-96ce-11c19c495bb4"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-3.5-turbo",
+          "mode": "list",
+          "cachedResultName": "gpt-3.5-turbo"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        580,
+        -200
+      ],
+      "id": "f7dcf7d4-c7b5-4298-85ee-0bdfbdc8b2dd",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "HoGQaErT31e8HcEC",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "2e45749e-dcd1-44be-993a-bae36d476046",
+              "name": "body.record.id",
+              "value": "={{ $('Webhook').item.json.body.record.id }}",
+              "type": "number"
+            },
+            {
+              "id": "d192f33c-3593-4048-88da-b1bce63c90b9",
+              "name": "body.record.text",
+              "value": "={{ $('Webhook').item.json.body.record.text }}",
+              "type": "string"
+            },
+            {
+              "id": "f85cdc87-b94e-4838-aaf6-b4112fd02b9c",
+              "name": "body.record.status",
+              "value": "={{ $('Webhook').item.json.body.record.status }}",
+              "type": "string"
+            },
+            {
+              "id": "91a1021c-f7dc-4b6d-aac1-b9a13b766430",
+              "name": "body.record.category",
+              "value": "={{ $json.output }}",
+              "type": "string"
+            },
+            {
+              "id": "0e025aaa-8013-432b-9ecb-04bd64fedce0",
+              "name": "body.record.sentiment",
+              "value": "={{ $('Webhook').item.json.body.record.sentiment }}",
+              "type": "string"
+            },
+            {
+              "id": "b000da21-c69b-457b-b180-6a3e4c2d2433",
+              "name": "body.record.created_at",
+              "value": "={{ $('Webhook').item.json.body.record.created_at }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        940,
+        -440
+      ],
+      "id": "caf1cc1a-8456-45f2-ac2c-639a72550e82",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "complaints",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $json.body.record.id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "text",
+              "fieldValue": "={{ $json.body.record.text }}"
+            },
+            {
+              "fieldId": "status",
+              "fieldValue": "={{ $json.body.record.status }}"
+            },
+            {
+              "fieldId": "created_at",
+              "fieldValue": "={{ $json.body.record.created_at }}"
+            },
+            {
+              "fieldId": "sentiment",
+              "fieldValue": "={{ $json.body.record.sentiment }}"
+            },
+            {
+              "fieldId": "category",
+              "fieldValue": "={{ $json.body.record.category }}"
+            },
+            {
+              "fieldId": "id",
+              "fieldValue": "={{ $json.body.record.id }}"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1160,
+        -440
+      ],
+      "id": "10c11a30-6bcc-4fd8-8881-7cdf2384671c",
+      "name": "Supabase1",
+      "credentials": {
+        "supabaseApi": {
+          "id": "0CQ3TRUuqmI83qdw",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $json.category }}",
+                    "rightValue": "техническая",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "b9952577-401b-4eb6-b7ad-92f3de365708"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "4561efc9-10bb-45d0-a856-ae7c0520b411",
+                    "leftValue": "={{ $json.category }}",
+                    "rightValue": "оплата",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        1020,
+        -60
+      ],
+      "id": "16c87852-e9d0-42f6-a62a-a53eefbcbfe6",
+      "name": "Switch"
+    },
+    {
+      "parameters": {
+        "updates": [
+          "message"
+        ],
+        "additionalFields": {}
+      },
+      "type": "n8n-nodes-base.telegramTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        1000,
+        -240
+      ],
+      "id": "371f55e2-8401-4ea0-9f9a-ea4d32632943",
+      "name": "Telegram Trigger",
+      "webhookId": "4fa5bc73-53c0-47a4-8441-e15eb2adbd2e",
+      "credentials": {
+        "telegramApi": {
+          "id": "H9dabsUz3W2EfuqL",
+          "name": "sentiment_negmetov_bot"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": {
+          "__rl": true,
+          "value": "1OxHG3qOnJda-dpdmcPtIRVwK-46f2ghEMV8hGUox-M8",
+          "mode": "list",
+          "cachedResultName": "sentiment_paid",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1OxHG3qOnJda-dpdmcPtIRVwK-46f2ghEMV8hGUox-M8/edit?usp=drivesdk"
+        },
+        "sheetName": {
+          "__rl": true,
+          "value": "gid=0",
+          "mode": "list",
+          "cachedResultName": "Лист1",
+          "cachedResultUrl": "https://docs.google.com/spreadsheets/d/1OxHG3qOnJda-dpdmcPtIRVwK-46f2ghEMV8hGUox-M8/edit#gid=0"
+        },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "тональность": "={{ $json.sentiment }}",
+            "текст жжалобы": "={{ $json.text }}",
+            "дата": "={{ $json.created_at }}"
+          },
+          "matchingColumns": [
+            "дата"
+          ],
+          "schema": [
+            {
+              "id": "дата",
+              "displayName": "дата",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true,
+              "removed": false
+            },
+            {
+              "id": "текст жжалобы",
+              "displayName": "текст жжалобы",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            },
+            {
+              "id": "тональность",
+              "displayName": "тональность",
+              "required": false,
+              "defaultMatch": false,
+              "display": true,
+              "type": "string",
+              "canBeUsedToMatch": true
+            }
+          ],
+          "attemptToConvertTypes": false,
+          "convertFieldsToString": false
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleSheets",
+      "typeVersion": 4.5,
+      "position": [
+        1280,
+        -40
+      ],
+      "id": "797f05a4-edcb-4194-814d-a3fa20785dce",
+      "name": "Google Sheets",
+      "alwaysOutputData": true,
+      "credentials": {
+        "googleSheetsOAuth2Api": {
+          "id": "7INGtldhVFVLmJAw",
+          "name": "Google Sheets negmetov.i"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "tableId": "complaints",
+        "filters": {
+          "conditions": [
+            {
+              "keyName": "id",
+              "condition": "eq",
+              "keyValue": "={{ $('Switch').item.json.id }}"
+            }
+          ]
+        },
+        "fieldsUi": {
+          "fieldValues": [
+            {
+              "fieldId": "status",
+              "fieldValue": "close"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        1480,
+        -40
+      ],
+      "id": "4e941a21-066a-4d44-bad9-7f52221e7475",
+      "name": "Supabase2",
+      "credentials": {
+        "supabaseApi": {
+          "id": "0CQ3TRUuqmI83qdw",
+          "name": "Supabase account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:8080/complaint",
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "={\n  \"text\": \"bill was paid\"\n}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        300,
+        -640
+      ],
+      "id": "e6ec3b7b-8d6c-475d-9626-e80ec50a5bba",
+      "name": "HTTP Request"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Hourly Triggerr": {
+      "main": [
+        [
+          {
+            "node": "Supabase",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase": {
+      "main": [
+        [
+          {
+            "node": "Filter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "Supabase1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Filter": {
+      "main": [
+        [
+          {
+            "node": "Switch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Switch": {
+      "main": [
+        [],
+        [
+          {
+            "node": "Google Sheets",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Telegram Trigger": {
+      "main": [
+        []
+      ]
+    },
+    "Google Sheets": {
+      "main": [
+        [
+          {
+            "node": "Supabase2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "5fdc9b6a-a3c7-41af-994e-343f5cc1f618",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "b1f75bd1d31e263f1dd4c8b4f7b05ef9ee19a54218ef006563b9d18c74590c39"
+  },
+  "id": "YvZIKQWa2qfyQFVZ",
+  "tags": []
+}

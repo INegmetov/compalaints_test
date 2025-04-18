@@ -1,0 +1,44 @@
+{
+    "_type": "export",
+    "__export_format": 4,
+    "__export_date": "2025-04-17T10:00:00.000Z",
+    "__export_source": "insomnia.desktop.app:v2023.5.5",
+    "resources": [
+      {
+        "_id": "req_1",
+        "parentId": "wrk_1",
+        "modified": 1680000000000,
+        "created": 1680000000000,
+        "url": "http://localhost:8080/complaint",
+        "name": "Send Complaint",
+        "description": "POST-запрос с жалобой",
+        "method": "POST",
+        "body": {
+          "mimeType": "application/json",
+          "text": "{\n  \"text\": \"not correct SMS-code\"\n}"
+        },
+        "parameters": [],
+        "headers": [
+          {
+            "name": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "authentication": {},
+        "metaSortKey": -1,
+        "isPrivate": false,
+        "_type": "request"
+      },
+      {
+        "_id": "wrk_1",
+        "parentId": null,
+        "modified": 1680000000000,
+        "created": 1680000000000,
+        "name": "Complaint API Workspace",
+        "description": "",
+        "scope": "collection",
+        "_type": "workspace"
+      }
+    ]
+  }
+  
