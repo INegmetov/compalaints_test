@@ -40,7 +40,7 @@ go mod tidy
 Создайте `.env` в корне проекта:
 
 ```env
-API_KEY=2fBydr3E6vH2lq2SOhoT8b4nbiVlq04P
+API_KEY=
 SENTIMENT_URL=https://api.apilayer.com/sentiment/analysis
 DEFAULT_STATUS=open
 DEFAULT_CATEGORY=другое
@@ -107,8 +107,3 @@ go run main.go
 - n8n (интеграция с OpenAI, Telegram, Google Sheets)
 
 ---
-
-## 📬 Связь
-
-Автор: [@yourtelegram](https://t.me/yourtelegram)  
-GitHub: [yourusername](https://github.com/yourusername)
