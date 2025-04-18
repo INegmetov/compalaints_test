@@ -40,7 +40,7 @@ go mod tidy
 Создайте `.env` в корне проекта:
 
 ```env
-API_KEY=
+API_KEY=your_api_key
 SENTIMENT_URL=https://api.apilayer.com/sentiment/analysis
 DEFAULT_STATUS=open
 DEFAULT_CATEGORY=другое
@@ -52,7 +52,6 @@ DB_PORT=6543
 DB_NAME=postgres
 
 BOT_TOKEN=your_telegram_bot_token
-TELEGRAM_CHAT_ID=123456789
 ```
 
 ---
